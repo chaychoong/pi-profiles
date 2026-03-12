@@ -1,0 +1,20 @@
+{
+  "name": "pi-profiles",
+  "version": "0.1.0",
+  "type": "module",
+  "keywords": ["pi-package"],
+  "files": ["dist/src/", "src/templates/"],
+  "bin": {
+    "ppi": "./dist/src/cli/main.js"
+  },
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test 'dist/test/*.js'"
+  },
+  "devDependencies": {
+    "typescript": "^5.7",
+    "@types/node": "^22"
+  }
+}
