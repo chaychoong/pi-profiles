@@ -1,8 +1,7 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, rmSync, writeFileSync, existsSync } from "node:fs";
-import { mkdtempSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync, readFileSync, existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -50,9 +49,10 @@ describe("CLI", () => {
     assert.ok(stdout.includes("Usage: ppi"));
   });
 
-  it("--version shows version", () => {
+  it("--version shows version from package.json", () => {
+    const pkg = JSON.parse(readFileSync(join(import.meta.dirname, "..", "..", "package.json"), "utf-8"));
     const { stdout } = run(["--version"], root);
-    assert.ok(stdout.includes("0.1.0"));
+    assert.ok(stdout.includes(pkg.version));
   });
 
   it("list shows no profiles initially", () => {

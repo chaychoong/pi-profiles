@@ -1,3 +1,16 @@
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+
+function findPackageJson(dir: string): string {
+  const candidate = join(dir, "package.json");
+  if (existsSync(candidate)) return candidate;
+  const parent = dirname(dir);
+  if (parent === dir) throw new Error("package.json not found");
+  return findPackageJson(parent);
+}
+
+const pkg = JSON.parse(readFileSync(findPackageJson(import.meta.dirname), "utf-8"));
+
 export function printHelp(): void {
   console.log(`Usage: ppi [command] [options]
 
@@ -23,5 +36,5 @@ Options:
 }
 
 export function printVersion(): void {
-  console.log("ppi 0.1.0");
+  console.log(`ppi ${pkg.version}`);
 }
