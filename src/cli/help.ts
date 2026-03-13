@@ -7,10 +7,15 @@ Launching:
 
 Profile management:
   ppi list                                  List profiles (* = default)
-  ppi create <name> [--own-auth] [--own-models]
-  ppi clone <source> <dest> [--own-auth] [--own-models]
+  ppi create <name> [options]               Create a blank profile
+  ppi create <name> --from <profile>        Copy from an existing profile
+  ppi create <name> --from-base             Copy from stock ~/.pi/agent/
   ppi delete <name> [--force]               Delete (confirms interactively)
   ppi set-default <name>                    Set default profile
+
+Create options:
+  --own-auth                                Independent auth (copy, not symlink)
+  --own-models                              Independent models (copy, not symlink)
 
 Options:
   --help, -h                                Show this help message

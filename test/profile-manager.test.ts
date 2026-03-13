@@ -134,7 +134,7 @@ describe("ProfileManager", () => {
     });
   });
 
-  describe("create", () => {
+  describe("create (blank)", () => {
     it("scaffolds a blank profile with symlinked auth and models", () => {
       writeFileSync(join(root, "agent", "auth.json"), '{"token":"abc"}');
       writeFileSync(join(root, "agent", "models.json"), '{"models":[]}');
@@ -193,7 +193,7 @@ describe("ProfileManager", () => {
     });
   });
 
-  describe("clone", () => {
+  describe("create --from (clone profile)", () => {
     it("deep-copies a profile excluding sessions", () => {
       const srcDir = join(root, "profiles", "src");
       mkdirSync(join(srcDir, "extensions"), { recursive: true });
@@ -202,7 +202,7 @@ describe("ProfileManager", () => {
       writeFileSync(join(srcDir, "extensions", "my-ext.ts"), "export default () => {}");
       writeFileSync(join(srcDir, "sessions", "session1.json"), "{}");
 
-      pm.clone("src", "dest");
+      pm.create("dest", { from: "src" });
 
       const destDir = join(root, "profiles", "dest");
       assert.ok(existsSync(destDir));
@@ -222,7 +222,7 @@ describe("ProfileManager", () => {
       symlinkSync(join(root, "agent", "auth.json"), join(srcDir, "auth.json"));
       writeFileSync(join(srcDir, "settings.json"), "{}");
 
-      pm.clone("src", "dest");
+      pm.create("dest", { from: "src" });
 
       const destAuth = join(root, "profiles", "dest", "auth.json");
       assert.ok(lstatSync(destAuth).isSymbolicLink());
@@ -235,7 +235,7 @@ describe("ProfileManager", () => {
       symlinkSync(join(root, "agent", "auth.json"), join(srcDir, "auth.json"));
       writeFileSync(join(srcDir, "settings.json"), "{}");
 
-      pm.clone("src", "dest", { shareAuth: false });
+      pm.create("dest", { from: "src", shareAuth: false });
 
       const destAuth = join(root, "profiles", "dest", "auth.json");
       assert.ok(!lstatSync(destAuth).isSymbolicLink());
@@ -249,7 +249,7 @@ describe("ProfileManager", () => {
       symlinkSync(join(root, "agent", "models.json"), join(srcDir, "models.json"));
       writeFileSync(join(srcDir, "settings.json"), "{}");
 
-      pm.clone("src", "dest", { shareModels: false });
+      pm.create("dest", { from: "src", shareModels: false });
 
       const destModels = join(root, "profiles", "dest", "models.json");
       assert.ok(!lstatSync(destModels).isSymbolicLink());
@@ -260,11 +260,81 @@ describe("ProfileManager", () => {
       mkdirSync(join(root, "profiles", "src"));
       writeFileSync(join(root, "profiles", "src", "settings.json"), "{}");
       mkdirSync(join(root, "profiles", "dest"));
-      assert.throws(() => pm.clone("src", "dest"), /already exists/i);
+      assert.throws(() => pm.create("dest", { from: "src" }), /already exists/i);
     });
 
     it("throws if source does not exist", () => {
-      assert.throws(() => pm.clone("nope", "dest"), /does not exist/i);
+      assert.throws(() => pm.create("dest", { from: "nope" }), /does not exist/i);
+    });
+  });
+
+  describe("create --from-base", () => {
+    it("copies settings and dirs from stock agentDir", () => {
+      writeFileSync(join(root, "agent", "settings.json"), '{"theme":"dark"}');
+      mkdirSync(join(root, "agent", "extensions"), { recursive: true });
+      writeFileSync(join(root, "agent", "extensions", "my-ext.ts"), "ext code");
+      mkdirSync(join(root, "agent", "skills"), { recursive: true });
+      writeFileSync(join(root, "agent", "skills", "my-skill.ts"), "skill code");
+      writeFileSync(join(root, "agent", "auth.json"), '{"token":"abc"}');
+      writeFileSync(join(root, "agent", "models.json"), '{"models":[]}');
+
+      pm.create("work", { fromBase: true });
+
+      const profileDir = join(root, "profiles", "work");
+      assert.ok(existsSync(profileDir));
+      assert.deepEqual(
+        JSON.parse(readFileSync(join(profileDir, "settings.json"), "utf-8")),
+        { theme: "dark" }
+      );
+      assert.ok(existsSync(join(profileDir, "extensions", "my-ext.ts")));
+      assert.equal(readFileSync(join(profileDir, "extensions", "my-ext.ts"), "utf-8"), "ext code");
+      assert.ok(existsSync(join(profileDir, "skills", "my-skill.ts")));
+    });
+
+    it("symlinks auth and models from stock by default", () => {
+      writeFileSync(join(root, "agent", "auth.json"), '{"token":"abc"}');
+      writeFileSync(join(root, "agent", "models.json"), '{"models":[]}');
+      writeFileSync(join(root, "agent", "settings.json"), "{}");
+
+      pm.create("work", { fromBase: true });
+
+      const profileDir = join(root, "profiles", "work");
+      assert.ok(lstatSync(join(profileDir, "auth.json")).isSymbolicLink());
+      assert.ok(lstatSync(join(profileDir, "models.json")).isSymbolicLink());
+    });
+
+    it("copies auth when shareAuth: false", () => {
+      writeFileSync(join(root, "agent", "auth.json"), '{"token":"abc"}');
+      writeFileSync(join(root, "agent", "models.json"), '{"models":[]}');
+      writeFileSync(join(root, "agent", "settings.json"), "{}");
+
+      pm.create("work", { fromBase: true, shareAuth: false });
+
+      const authPath = join(root, "profiles", "work", "auth.json");
+      assert.ok(!lstatSync(authPath).isSymbolicLink());
+      assert.deepEqual(JSON.parse(readFileSync(authPath, "utf-8")), { token: "abc" });
+      assert.ok(lstatSync(join(root, "profiles", "work", "models.json")).isSymbolicLink());
+    });
+
+    it("excludes sessions contents from stock", () => {
+      writeFileSync(join(root, "agent", "settings.json"), "{}");
+      mkdirSync(join(root, "agent", "sessions"), { recursive: true });
+      writeFileSync(join(root, "agent", "sessions", "old.json"), "{}");
+
+      pm.create("work", { fromBase: true });
+
+      const sessionsDir = join(root, "profiles", "work", "sessions");
+      assert.ok(existsSync(sessionsDir));
+      assert.deepEqual(readdirSync(sessionsDir), []);
+    });
+
+    it("throws if both from and fromBase are set", () => {
+      mkdirSync(join(root, "profiles", "src"));
+      writeFileSync(join(root, "profiles", "src", "settings.json"), "{}");
+      assert.throws(
+        () => pm.create("dest", { from: "src", fromBase: true }),
+        /Cannot use both/
+      );
     });
   });
 

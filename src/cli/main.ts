@@ -4,7 +4,6 @@ import { printHelp, printVersion } from "./help.js";
 import { cmdUse } from "./commands/use.js";
 import { cmdList } from "./commands/list.js";
 import { cmdCreate } from "./commands/create.js";
-import { cmdClone } from "./commands/clone.js";
 import { cmdDelete } from "./commands/delete.js";
 import { cmdSetDefault } from "./commands/set-default.js";
 
@@ -42,9 +41,6 @@ function main(args: string[]): void {
       break;
     case "create":
       cmdCreate(args.slice(1));
-      break;
-    case "clone":
-      cmdClone(args.slice(1));
       break;
     case "delete":
       cmdDelete(args.slice(1)).catch((err) => {

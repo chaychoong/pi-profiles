@@ -79,14 +79,24 @@ describe("CLI", () => {
     assert.ok(result.stdout.includes("work"));
   });
 
-  it("clone copies profile", () => {
+  it("create --from copies profile", () => {
     writeFileSync(join(root, "agent", "auth.json"), "{}");
     writeFileSync(join(root, "agent", "models.json"), "{}");
 
     run(["create", "src"], root);
-    const result = run(["clone", "src", "dest"], root);
+    const result = run(["create", "dest", "--from", "src"], root);
     assert.equal(result.status, 0);
     assert.ok(existsSync(join(root, "profiles", "dest", "settings.json")));
+  });
+
+  it("create --from-base copies stock config", () => {
+    writeFileSync(join(root, "agent", "auth.json"), "{}");
+    writeFileSync(join(root, "agent", "models.json"), "{}");
+    writeFileSync(join(root, "agent", "settings.json"), '{"theme":"dark"}');
+
+    const result = run(["create", "work", "--from-base"], root);
+    assert.equal(result.status, 0);
+    assert.ok(existsSync(join(root, "profiles", "work", "settings.json")));
   });
 
   it("delete --force removes profile", () => {

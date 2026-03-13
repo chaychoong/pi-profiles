@@ -14,7 +14,7 @@ import {
 } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { homedir } from "node:os";
-import type { Profile, ProfileSummary, CreateOpts, CloneOpts } from "./types.js";
+import type { Profile, ProfileSummary, CreateOpts } from "./types.js";
 
 const NAME_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
 const MAX_NAME_LENGTH = 64;
@@ -108,67 +108,49 @@ export class ProfileManager {
       throw new Error(`Profile "${name}" already exists at ${profileDir}`);
     }
 
-    const shareAuth = opts?.shareAuth ?? true;
-    const shareModels = opts?.shareModels ?? true;
-
-    mkdirSync(profileDir, { recursive: true });
-    for (const dir of ["extensions", "skills", "tools", "prompts", "sessions"]) {
-      mkdirSync(join(profileDir, dir));
-    }
-
-    writeFileSync(join(profileDir, "settings.json"), "{}\n");
-
-    const stockAuth = join(this.agentDir, "auth.json");
-    if (existsSync(stockAuth)) {
-      if (shareAuth) {
-        symlinkSync(stockAuth, join(profileDir, "auth.json"));
-      } else {
-        copyFileSync(stockAuth, join(profileDir, "auth.json"));
-      }
-    }
-
-    const stockModels = join(this.agentDir, "models.json");
-    if (existsSync(stockModels)) {
-      if (shareModels) {
-        symlinkSync(stockModels, join(profileDir, "models.json"));
-      } else {
-        copyFileSync(stockModels, join(profileDir, "models.json"));
-      }
-    }
-  }
-
-  clone(source: string, dest: string, opts?: CloneOpts): void {
-    const srcProfile = this.resolve(source);
-    this.validateName(dest);
-    const destDir = this.profilePath(dest);
-    if (existsSync(destDir)) {
-      throw new Error(`Profile "${dest}" already exists at ${destDir}`);
+    if (opts?.from && opts?.fromBase) {
+      throw new Error("Cannot use both --from and --from-base");
     }
 
     const shareAuth = opts?.shareAuth ?? true;
     const shareModels = opts?.shareModels ?? true;
 
-    // Deep copy preserving symlinks, excluding sessions/ contents.
-    // Node's cpSync does NOT preserve symlinks (it follows them), so we
-    // use a custom recursive copy.
-    this.copyDirPreservingSymlinks(srcProfile.path, destDir, "sessions");
+    if (opts?.from) {
+      // Copy from an existing profile
+      const srcProfile = this.resolve(opts.from);
+      this.copyDirPreservingSymlinks(srcProfile.path, profileDir, "sessions");
+      mkdirSync(join(profileDir, "sessions"), { recursive: true });
 
-    // Ensure sessions/ dir exists (its contents were excluded)
-    mkdirSync(join(destDir, "sessions"), { recursive: true });
-
-    // Handle auth/models symlink dereferencing if requested
-    for (const [file, share] of [
-      ["auth.json", shareAuth],
-      ["models.json", shareModels],
-    ] as const) {
-      const filePath = join(destDir, file);
-      if (!share && existsSync(filePath) && lstatSync(filePath).isSymbolicLink()) {
-        const target = readlinkSync(filePath);
-        unlinkSync(filePath);
-        // Resolve symlink target relative to its location
-        const resolvedTarget = resolve(dirname(filePath), target);
-        copyFileSync(resolvedTarget, filePath);
+      // Dereference auth/models symlinks if requested
+      for (const [file, share] of [
+        ["auth.json", shareAuth],
+        ["models.json", shareModels],
+      ] as const) {
+        const filePath = join(profileDir, file);
+        if (!share && existsSync(filePath) && lstatSync(filePath).isSymbolicLink()) {
+          const target = readlinkSync(filePath);
+          unlinkSync(filePath);
+          const resolvedTarget = resolve(dirname(filePath), target);
+          copyFileSync(resolvedTarget, filePath);
+        }
       }
+    } else if (opts?.fromBase) {
+      // Copy from stock agentDir, excluding sessions and auth/models
+      // (auth/models are handled below, same as blank create)
+      const excludeFiles = new Set(["auth.json", "models.json"]);
+      this.copyDirPreservingSymlinks(this.agentDir, profileDir, "sessions", excludeFiles);
+      mkdirSync(join(profileDir, "sessions"), { recursive: true });
+
+      this.linkOrCopyStockAuth(profileDir, shareAuth, shareModels);
+    } else {
+      // Blank scaffold
+      mkdirSync(profileDir, { recursive: true });
+      for (const dir of ["extensions", "skills", "tools", "prompts", "sessions"]) {
+        mkdirSync(join(profileDir, dir));
+      }
+      writeFileSync(join(profileDir, "settings.json"), "{}\n");
+
+      this.linkOrCopyStockAuth(profileDir, shareAuth, shareModels);
     }
   }
 
@@ -182,12 +164,43 @@ export class ProfileManager {
   }
 
   /**
+   * Symlink or copy auth.json and models.json from the stock agentDir.
+   */
+  private linkOrCopyStockAuth(
+    profileDir: string,
+    shareAuth: boolean,
+    shareModels: boolean,
+  ): void {
+    for (const [file, share] of [
+      ["auth.json", shareAuth],
+      ["models.json", shareModels],
+    ] as const) {
+      const stockPath = join(this.agentDir, file);
+      if (existsSync(stockPath)) {
+        if (share) {
+          symlinkSync(stockPath, join(profileDir, file));
+        } else {
+          copyFileSync(stockPath, join(profileDir, file));
+        }
+      }
+    }
+  }
+
+  /**
    * Recursively copy a directory, preserving symlinks as symlinks.
    * Skips contents of `excludeDir` (but creates the dir itself).
+   * Skips any files whose names appear in `excludeFiles`.
    */
-  private copyDirPreservingSymlinks(src: string, dest: string, excludeDir?: string): void {
+  private copyDirPreservingSymlinks(
+    src: string,
+    dest: string,
+    excludeDir?: string,
+    excludeFiles?: Set<string>,
+  ): void {
     mkdirSync(dest, { recursive: true });
     for (const entry of readdirSync(src)) {
+      if (excludeFiles?.has(entry)) continue;
+
       const srcPath = join(src, entry);
       const destPath = join(dest, entry);
       const stat = lstatSync(srcPath);

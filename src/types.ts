@@ -14,17 +14,8 @@ export interface CreateOpts {
   shareAuth?: boolean;
   /** Symlink models.json from stock pi config. Default: true. */
   shareModels?: boolean;
-}
-
-export interface CloneOpts {
-  /**
-   * When true (default), preserve the source's auth.json as-is (symlink or file).
-   * When false (--own-auth), dereference any symlink into an independent copy.
-   */
-  shareAuth?: boolean;
-  /**
-   * When true (default), preserve the source's models.json as-is (symlink or file).
-   * When false (--own-models), dereference any symlink into an independent copy.
-   */
-  shareModels?: boolean;
+  /** Name of an existing profile to copy from. */
+  from?: string;
+  /** Copy from the stock ~/.pi/agent/ directory. */
+  fromBase?: boolean;
 }

@@ -3,5 +3,4 @@ export type {
   Profile,
   ProfileSummary,
   CreateOpts,
-  CloneOpts,
 } from "./types.js";

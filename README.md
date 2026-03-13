@@ -30,6 +30,12 @@ have pi).
 ppi create work
 ppi create personal --own-auth    # independent API key
 
+# Create from your current pi config
+ppi create work --from-base
+
+# Copy an existing profile
+ppi create experiments --from work
+
 # List profiles
 ppi list
 
@@ -40,9 +46,6 @@ ppi set-default work
 ppi use work
 ppi                               # launches the default profile
 ppi use work -- -p "fix the bug"  # pass args to pi after --
-
-# Clone a profile
-ppi clone work experiments
 
 # Delete a profile
 ppi delete experiments            # interactive confirmation
@@ -66,8 +69,8 @@ Each profile is a complete pi agentDir:
 ```
 
 Auth and models are symlinked from the stock pi config by default, so one
-`pi login` works everywhere. Pass `--own-auth` or `--own-models` to
-`create` or `clone` for independent credentials.
+`pi login` works everywhere. Pass `--own-auth` or `--own-models` to `create` for independent
+credentials.
 
 ## Goals
 
