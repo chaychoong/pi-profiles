@@ -1,6 +1,6 @@
 {
   "name": "pi-profiles",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "license": "MIT",
   "description": "Configuration profile manager for pi (pi.dev)",
@@ -8,8 +8,13 @@
     "type": "git",
     "url": "git+https://github.com/chaychoong/pi-profiles.git"
   },
-  "keywords": ["pi-package"],
-  "files": ["dist/src/", "src/templates/"],
+  "keywords": [
+    "pi-package"
+  ],
+  "files": [
+    "dist/src/",
+    "src/templates/"
+  ],
   "bin": {
     "ppi": "dist/src/cli/main.js"
   },
